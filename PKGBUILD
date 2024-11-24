@@ -3,10 +3,10 @@
 # Contributor: Philip Goto <philip.goto@gmail.com>
 
 pkgname=librespot
-pkgver=0.5.0
-pkgrel=3
+pkgver=0.6.0
+pkgrel=1
 pkgdesc='Open source client library for Spotify'
-arch=('x86_64')
+arch=('x86_64' 'armv7h' 'aarch64')
 url='https://github.com/librespot-org/librespot'
 license=('MIT')
 depends=(
@@ -14,6 +14,7 @@ depends=(
 )
 makedepends=(
     'cargo'
+    'cmake'
 )
 optdepends=(
     'gst-plugins-base: Audio playback using GStreamer'
@@ -24,12 +25,12 @@ optdepends=(
     'sdl2: Audio playback using SDL2'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('1af039ba08a2ad0d7b9758e8133229085845d1386018b90b455f011df27ee8df')
+sha256sums=('9ec881edb11e37d31a2b41dd30d56a3413445eedb720e1b0d278567dccfca8fc')
 
 prepare() {
     cd "$pkgname-$pkgver"
     export RUSTUP_TOOLCHAIN=stable
-    export PKG_FEATURES=alsa-backend
+    export PKG_FEATURES="alsa-backend with-libmdns"
     PKG_FEATURE_MAP=(
         [jack2]='jackaudio-backend'
         [gst-plugins-good]='gstreamer-backend'
@@ -50,6 +51,7 @@ build() {
     cd "$pkgname-$pkgver"
     export RUSTUP_TOOLCHAIN=stable
     export CARGO_TARGET_DIR=target
+    export CFLAGS="$CFLAGS -ffat-lto-objects"
     export CARGO_BUILD_JOBS="$(nproc --ignore $(($(nproc) / 2)))"
     echo >&2 "Building $pkgname-$pkgver with the following features: $PKG_FEATURES"
     cargo build --release --frozen --no-default-features --features "$PKG_FEATURES"
