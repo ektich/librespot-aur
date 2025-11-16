@@ -1,72 +1,71 @@
 # Maintainer: FirstAirBender <noblechuk5[at]gmail[dot]com>
+# Maintainer: txtsd <aur.archlinux@ihaveea.quest>
 # Contributor: Luis Martinez <luis dot martinez at disroot dot org>
 # Contributor: Philip Goto <philip.goto@gmail.com>
 
 pkgname=librespot
-pkgver=0.6.0
-pkgrel=1
+pkgver=0.7.0
+pkgrel=4
 pkgdesc='Open source client library for Spotify'
-arch=('x86_64' 'armv7h' 'aarch64')
+arch=(x86_64 armv7h aarch64)
 url='https://github.com/librespot-org/librespot'
 license=('MIT')
 depends=(
-    'alsa-lib'
+  alsa-lib
+  avahi
+  gcc-libs
+  glibc
+  gst-plugins-base-libs
+  gstreamer
 )
 makedepends=(
-    'cargo'
-    'cmake'
+  cargo
+  git
+  jack
+  libpulse
+  portaudio
+  sdl2
 )
 optdepends=(
-    'gst-plugins-base: Audio playback using GStreamer'
-    'gst-plugins-good: Audio playback using GStreamer'
-    'jack2: Audio playback using JACK'
-    'libpulse: Audio playback using PulseAudio'
-    'portaudio: Audio playback using PortAudio'
-    'sdl2: Audio playback using SDL2'
+  'gst-plugins-base: Audio playback using GStreamer'
+  'gst-plugins-good: Audio playback using GStreamer'
+  'jack2: Audio playback using JACK'
+  'libpulse: Audio playback using PulseAudio'
+  'portaudio: Audio playback using PortAudio'
+  'sdl2: Audio playback using SDL2'
 )
-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('9ec881edb11e37d31a2b41dd30d56a3413445eedb720e1b0d278567dccfca8fc')
+options=(!lto)
+source=("git+${url}#tag=v${pkgver}")
+sha256sums=('ab17e53f4df4561ac6055c43aacf3757363df997487e9723041a50615df771f1')
 
 prepare() {
-    cd "$pkgname-$pkgver"
-    export RUSTUP_TOOLCHAIN=stable
-    export PKG_FEATURES="alsa-backend with-libmdns"
-    PKG_FEATURE_MAP=(
-        [jack2]='jackaudio-backend'
-        [gst-plugins-good]='gstreamer-backend'
-        [gst-plugins-base]='gstreamer-backend'
-        [sdl2]='sdl-backend'
-        [libpulse]='pulseaudio-backend'
-        [portaudio]='portaudio-backend'
-    )
-    for pkg in "${!PKG_FEATURE_MAP[@]}"; do
-        if [[ -n `pacman -Qsq "$pkg" | sed -E "/^$pkg\$/b; /.+/d"` ]]; then
-            export PKG_FEATURES="$PKG_FEATURES,${PKG_FEATURE_MAP[$pkg]}"
-        fi 2>/dev/null >&2
-    done
-    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+  cd "${pkgname}"
+
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
 }
 
 build() {
-    cd "$pkgname-$pkgver"
-    export RUSTUP_TOOLCHAIN=stable
-    export CARGO_TARGET_DIR=target
-    export CFLAGS="$CFLAGS -ffat-lto-objects"
-    export CARGO_BUILD_JOBS="$(nproc --ignore $(($(nproc) / 2)))"
-    echo >&2 "Building $pkgname-$pkgver with the following features: $PKG_FEATURES"
-    cargo build --release --frozen --no-default-features --features "$PKG_FEATURES"
+  cd "${pkgname}"
+
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --no-default-features --features "native-tls,alsa-backend,pulseaudio-backend,with-libmdns" --workspace
 }
 
-# check() {
-#   cd "$pkgname-$pkgver"
-#     export RUSTUP_TOOLCHAIN=stable
-#     cargo test --frozen --no-default-features --features "$PKG_FEATURES"
-# }
+check() {
+  cd "${pkgname}"
+
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen --release --no-default-features --features "native-tls,pulseaudio-backend,with-libmdns" --workspace
+}
 
 package() {
-    cd "$pkgname-$pkgver"
-    install -Dvm0755 -t "$pkgdir/usr/bin/" "target/release/$pkgname"
-    install -Dvm644 "contrib/$pkgname.service" -t "$pkgdir/usr/lib/systemd/system/"
-    install -Dvm644 "contrib/$pkgname.user.service" "$pkgdir/usr/lib/systemd/user/$pkgname.service"
-    install -Dvm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+  cd "${pkgname}"
+
+  install -Dm755 "target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm644 "contrib/${pkgname}.service" "${pkgdir}/usr/lib/systemd/system/${pkgname}.service"
+  install -Dm644 "contrib/${pkgname}.user.service" "${pkgdir}/usr/lib/systemd/user/${pkgname}.service"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }
